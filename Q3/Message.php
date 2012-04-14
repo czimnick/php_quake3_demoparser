@@ -81,6 +81,26 @@
 			return $data;
 		}
 
+		public function ReadString() {
+			$maxLen = 1024;
+			$curLen = 0;
+			$data = "";
+
+			for($i = 0; $i < 1024; $i++) {
+				$byte = $this->ReadByte();
+				if($byte == -1 || $byte == 0) break;
+
+				// translate all fmt spec to avoid crash bugs (c++)
+				if($byte == '%') $byte = ord(".");
+
+				// don't allow higher ascii values
+				if($byte > 127) $byte = ord(".");
+				$data .= chr($byte);
+			}
+
+			return $data;
+		}
+
 		public function ReadData($len) {
 			$data = array();
 

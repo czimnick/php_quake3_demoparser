@@ -34,6 +34,8 @@
 		public $gameState = null;
 		public $gameStates = array();
 
+		public $ErrorString = null;
+
 		// magic dont touch!!!
 		// count of bits for every netField from entityState_t (quake3)
 		private $entityStateFieldBits = array(32, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 8, 8, 8, 8, Q3_DEMOPARSER_GENTITYNUM_BITS, 8, 19, Q3_DEMOPARSER_GENTITYNUM_BITS, 8, 8, 0, 32, 8, 0, 0, 0, 24, 16, 8, Q3_DEMOPARSER_GENTITYNUM_BITS, 8, 8, 0, 0, 0, 8, 0, 32, 32, 32, 0, 0, 0, 0, 32, 0, 0, 0, 32, 16);
@@ -72,14 +74,15 @@
 			}
 
 			if($msg->CurSize > $msg->MaxSize) {
-				// msglen > maxlen...!!!
+				$this->ErrorString = "readDemoMessage(): msglen > maxlen!!!";
 				$this->state = Q3_DEMOPARSER_STATE_ERROR;
 				return;
 			}
 
 			if( ($data = fread($this->fileHandler, $msg->CurSize)) === false) {
-				// demo file was truncated...
+				$this->ErrorString = "readDemoMessage(): demo file was truncated!";
 				$this->state = Q3_DEMOPARSER_STATE_ERROR;
+				return;
 			}
 
 			$msg->setData($data);
@@ -96,7 +99,7 @@
 
 			while(true) {
 				if($msg->ReadCount > $msg->CurSize) {
-					// ParseServerMessage: read past end of server message
+					$this->ErrorString = "parseServerMessage(): read past end of server message.";
 					$this->state = Q3_DEMOPARSER_STATE_ERROR;
 					return;
 				}
@@ -108,7 +111,7 @@
 
 				switch($cmd) {
 					default:
-						//  illegible server message.
+						$this->ErrorString = "illegible server message.";
 						$this->state = Q3_DEMOPARSER_STATE_ERROR;
 						return;
 						break;
@@ -130,9 +133,9 @@
 
 					case Q3_DEMOPARSER_SVC_SNAPSHOT:
 						$this->state = Q3_DEMOPARSER_STATE_FINISHED;
+						return;
 						//$this->parseSnapShot($msg);
 						// TODO: implement parseSnapShot
-						return;
 						break;
 
 					case Q3_DEMOPARSER_SVC_DOWNLOAD:
@@ -141,6 +144,24 @@
 						break;
 				}
 			}
+		}
+
+		private function parseServerCommands(Q3_Message &$msg) {
+			throw new Exception("not implmented");
+
+			$seq = $msg->ReadLong();
+			$cmd = $msg->ReadString();
+
+			if($this->gameState->ServerCommandSequence >= $seq) {
+				return; // we have already stored ...
+			}
+
+			$this->gameState->ServerCommandSequence = $seq;
+			$this->gameState->ServerCommands[] = $s;
+		}
+
+		private function parseSnapShot(Q3_Message &$msg) {
+			throw new Exception("not implmented");
 		}
 
 		private function parseGameState(Q3_Message &$msg) {
@@ -159,7 +180,7 @@
 				if($cmd == Q3_DEMOPARSER_SVC_CONFIGSTRING) {
 					$configStringNum = $msg->ReadShort();
 					if($configStringNum < 0 || $configStringNum >= Q3_DEMOPARSER_MAX_CONFIGSTRINGS) {
-						// configstrings > MAX_CONFIGSTRINGS
+						$this->ErrorString = "parseGameState(): configstrings > MAX_CONFIGSTRINGS!";
 						$this->state = Q3_DEMOPARSER_STATE_ERROR;
 						return;
 					}
@@ -169,6 +190,7 @@
 
 					if( ($gameDataLen + 1 + strlen($configString)) > Q3_DEMOPARSER_MAX_GAMESTATE_CHARS) {
 						// quake3 allow max 16000 gameState data because his char array in c struct is only Q3_DEMOPARSER_MAX_GAMESTATE_CHARS bytes (gameState_t.stringData)
+						$this->ErrorString = "parseGameState(): gameStateData > Q3_DEMOPARSER_MAX_GAMESTATE_CHARS!";
 						$this->state = Q3_DEMOPARSER_STATE_ERROR;
 						return;
 					}
@@ -178,7 +200,7 @@
 				}elseif($cmd == Q3_DEMOPARSER_SVC_BASELINE) {
 					$newNum = $msg->ReadBits(Q3_DEMOPARSER_GENTITYNUM_BITS);
 					if($newNum < 0 || $newNum >= Q3_DEMOPARSER_MAX_GENTITIES) {
-						// baseline entities out of range...
+						$this->ErrorString = "parseGameState(): baseline entities out of range!";
 						$this->state = Q3_DEMOPARSER_STATE_ERROR;
 						return;
 					}
@@ -186,7 +208,7 @@
 					$this->parseEntity($msg, $newNum);
 
 				}else{
-					// bad gamestate command byte....
+					$this->ErrorString = "parseGameState(): bad gamestate command byte.";
 					$this->state = Q3_DEMOPARSER_STATE_ERROR;
 					return;
 				}
@@ -200,6 +222,7 @@
 			// throw all into >> /dev/null
 
 			if($num < 0 || $num >= Q3_DEMOPARSER_MAX_GENTITIES) {
+				$this->ErrorString = "parseEntity(): num >= Q3_DEMOPARSER_MAX_GENTITIES || num < 0!";
 				$this->state = Q3_DEMOPARSER_STATE_ERROR;
 				return;
 			}
