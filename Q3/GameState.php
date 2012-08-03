@@ -3,7 +3,7 @@
 		/**
 		 * @var int
 		 */
-		public $ServerMessageSequence, $ReliableAcknowledge, $ReliableSequence, $ServerCommandSequence, $ClientNum, $ChecksumFeed, $ParseEntitiesNum;
+		public $ServerMessageSequence, $ReliableAcknowledge, $ReliableSequence, $ServerCommandSequence, $ClientNum, $ChecksumFeed;
 
 		public $ServerCommands = array();
 		public $SnapShot = "";
